@@ -26,42 +26,79 @@
 
 #include "quaternionFilters.h"
 #include "MPU9250.h"
+#include <PID_v1.h>
 
-#ifdef LCD
-#include <Adafruit_GFX.h>
-#include <Adafruit_PCD8544.h>
 
-// Using NOKIA 5110 monochrome 84 x 48 pixel display
-// pin 9 - Serial clock out (SCLK)
-// pin 8 - Serial data out (DIN)
-// pin 7 - Data/Command select (D/C)
-// pin 5 - LCD chip select (CS)
-// pin 6 - LCD reset (RST)
-Adafruit_PCD8544 display = Adafruit_PCD8544(9, 8, 7, 5, 6);
-#endif // LCD
+
+// define pins
+const int pinSpeed_Left = 9; // connect pin 9 to speed reference
+const int pinCW_Left = 7;    // connect pin 7 to clock-wise PMOS gate
+const int pinCC_Left = 8;    // connect pin 8 to counter-clock-wise PMOS gate
+const int pinSpeed_Right = 10;
+const int pinCW_Right = 11;
+const int pinCC_Right = 12;
+char cnt = 0;
 
 #define AHRS true         // Set to false for basic data read
 #define SerialDebug true  // Set to true to get Serial output for debugging
 
 // Pin definitions
-int intPin = 12;  // These can be changed, 2 and 3 are the Arduinos ext int pins
+int intPin = 2;  // These can be changed, 2 and 3 are the Arduinos ext int pins
 int myLed  = 13;  // Set up pin 13 led for toggling
 
 MPU9250 myIMU;
 
+      //PID
+    double originalSetpoint = 190;
+    double setpoint = originalSetpoint;
+    double movingAngleOffset = 0.1;
+    double input, output = 0;
+    
+    //adjust these values to fit your own design
+    double Kp = 50;   
+    double Kd = 0.01;
+    double Ki = 2;
+    PID pid(&input, &output, &setpoint, Kp, Ki, Kd, DIRECT);
+
+    // I2C scan function
+
+
 void setup()
 {
+
+   //pinMode(pinON,INPUT);
+  pinMode(pinCW_Left,OUTPUT);
+  pinMode(pinCC_Left,OUTPUT);
+  pinMode(pinSpeed_Left,OUTPUT);
+  pinMode(13,OUTPUT);             // on-board LED
+  digitalWrite(13,LOW);           // turn LED off
+  digitalWrite(pinCW_Left,LOW);   // stop clockwise
+  digitalWrite(pinCC_Left,LOW);   // stop counter-clockwise
+  
+
+  //right
+  pinMode(pinCW_Right,OUTPUT);
+  pinMode(pinCC_Right,OUTPUT);
+  pinMode(pinSpeed_Right,OUTPUT);
+  digitalWrite(pinCW_Right,LOW);   // stop clockwise
+  digitalWrite(pinCC_Right,LOW);   // stop counter-clockwise
   Wire.begin();
   // TWBR = 12;  // 400 kbit/sec I2C speed
   Serial.begin(38400);
+//set bypass mode
+//myIMU.writeByte(MPU9250_ADDRESS, INT_PIN_CFG, 0x1);
+//Wire.beginTransmission(MPU9250_ADDRESS);
+//Wire.write(INT_PIN_CFG);
+//Wire.write(0b00000010);
+//Wire.endTransmission();
+
+//i2c.writeReg(INT_PIN_CFG, 0b00000010) # BYPASS_EN
 
   // Set up the interrupt pin, its set as active high, push-pull
   pinMode(intPin, INPUT);
   digitalWrite(intPin, LOW);
   pinMode(myLed, OUTPUT);
   digitalWrite(myLed, HIGH);
-
-
 
   // Read the WHO_AM_I register, this is a good test of communication
   byte c = myIMU.readByte(MPU9250_ADDRESS, WHO_AM_I_MPU9250);
@@ -100,25 +137,30 @@ void setup()
     // Initialize device for active mode read of acclerometer, gyroscope, and
     // temperature
     Serial.println("MPU9250 initialized for active data mode....");
-
+  
+    //activate by pass mode
+    
+    
     // Read the WHO_AM_I register of the magnetometer, this is a good test of
     // communication
     byte d = myIMU.readByte(AK8963_ADDRESS, WHO_AM_I_AK8963);
-    Serial.print("AK8963 ");
-    Serial.print("I AM 0x");
-    Serial.print(d, HEX);
-    Serial.print(" I should be 0x");
-    Serial.println(0x48, HEX);
+    //Serial.print("AK8963 ");
+    //Serial.print("I AM 0x");
+    //Serial.print(d, HEX);
+    //Serial.print(" I should be 0x");
+    //Serial.println(0x48, HEX);
+  
 
-
-
-   // if (d != 0x48)
-  //  {
-  //    // Communication failed, stop here
-  //    Serial.println(F("Communication failed, abort!"));
-  //    Serial.flush();
-  //    abort();
-  //  }
+/*
+    if (d != 0x48)
+    {
+      // Communication failed, stop here
+      Serial.println(F("Communication failed, abort!"));
+      Serial.flush();
+      abort();
+    }
+    */
+    
 
     // Get magnetometer calibration from AK8963 ROM
     myIMU.initAK8963(myIMU.factoryMagCalibration);
@@ -145,7 +187,7 @@ void setup()
 
     // The next call delays for 4 seconds, and then records about 15 seconds of
     // data to calculate bias and scale.
-    myIMU.magCalMPU9250(myIMU.magBias, myIMU.magScale);
+    //myIMU.magCalMPU9250(myIMU.magBias, myIMU.magScale);
     Serial.println("AK8963 mag biases (mG)");
     Serial.println(myIMU.magBias[0]);
     Serial.println(myIMU.magBias[1]);
@@ -181,15 +223,75 @@ void setup()
     Serial.flush();
     abort();
   }
+  //setup PID
+  
+  pid.SetMode(AUTOMATIC);
+  pid.SetSampleTime(10);
+  pid.SetOutputLimits(-255, 255); 
 }
+#define max_speed 90
+void robot_move(float speed)
+{
+  speed = speed * -1;
 
+  //speed = speed / 64;
+  //Serial.println("speed:");
+  //Serial.println(speed);
+
+analogWrite(pinSpeed_Left,speed);
+analogWrite(pinSpeed_Right,speed);
+if(speed < 0)
+  {
+    speed = speed * -1;
+    if(speed > 250)
+    speed = max_speed;
+    analogWrite(pinSpeed_Left,speed);
+    analogWrite(pinSpeed_Right,speed);
+    digitalWrite(pinCW_Right,LOW);
+    digitalWrite(pinCC_Right,HIGH);
+    digitalWrite(pinCW_Left,LOW);
+    digitalWrite(pinCC_Left,HIGH);
+/*
+    digitalWrite(pinCW_Right,HIGH);
+    digitalWrite(pinCC_Right,LOW);
+    digitalWrite(pinCW_Left,HIGH);
+    digitalWrite(pinCC_Left,LOW);
+ */
+
+    
+  }
+  else
+  {
+    if(speed > 250)
+    speed = max_speed;
+    analogWrite(pinSpeed_Left,speed);
+    analogWrite(pinSpeed_Right,speed);
+    
+    /*digitalWrite(pinCW_Right,LOW);
+    digitalWrite(pinCC_Right,HIGH);
+    digitalWrite(pinCW_Left,LOW);
+    digitalWrite(pinCC_Left,HIGH);
+    */
+    digitalWrite(pinCW_Right,HIGH);
+    digitalWrite(pinCC_Right,LOW);
+    digitalWrite(pinCW_Left,HIGH);
+    digitalWrite(pinCC_Left,LOW);
+  }
+
+}
 void loop()
 {
+  pid.Compute();
+  
+  robot_move(output);
+
   // If intPin goes high, all data registers have new data
   // On interrupt, check if data ready interrupt
   if (myIMU.readByte(MPU9250_ADDRESS, INT_STATUS) & 0x01)
   {
+    //robot_move(output);
     myIMU.readAccelData(myIMU.accelCount);  // Read the x/y/z adc values
+    
 
     // Now we'll calculate the accleration value into actual g's
     // This depends on scale being set
@@ -217,7 +319,10 @@ void loop()
                * myIMU.factoryMagCalibration[1] - myIMU.magBias[1];
     myIMU.mz = (float)myIMU.magCount[2] * myIMU.mRes
                * myIMU.factoryMagCalibration[2] - myIMU.magBias[2];
+                //mx = -189 my = 355 mz = 127 mG
+                myIMU.mx = -189;myIMU.my = 355; myIMU.mz = 127;
   } // if (readByte(MPU9250_ADDRESS, INT_STATUS) & 0x01)
+ 
 
   // Must be called before updating quaternions!
   myIMU.updateTime();
@@ -273,34 +378,10 @@ void loop()
         Serial.println(" degrees C");
       }
 
-#ifdef LCD
-      display.clearDisplay();
-      display.setCursor(0, 0); display.print("MPU9250/AK8963");
-      display.setCursor(0, 8); display.print(" x   y   z  ");
 
-      display.setCursor(0,  16); display.print((int)(1000 * myIMU.ax));
-      display.setCursor(24, 16); display.print((int)(1000 * myIMU.ay));
-      display.setCursor(48, 16); display.print((int)(1000 * myIMU.az));
-      display.setCursor(72, 16); display.print("mg");
-
-      display.setCursor(0,  24); display.print((int)(myIMU.gx));
-      display.setCursor(24, 24); display.print((int)(myIMU.gy));
-      display.setCursor(48, 24); display.print((int)(myIMU.gz));
-      display.setCursor(66, 24); display.print("o/s");
-
-      display.setCursor(0,  32); display.print((int)(myIMU.mx));
-      display.setCursor(24, 32); display.print((int)(myIMU.my));
-      display.setCursor(48, 32); display.print((int)(myIMU.mz));
-      display.setCursor(72, 32); display.print("mG");
-
-      display.setCursor(0,  40); display.print("Gyro T ");
-      display.setCursor(50,  40); display.print(myIMU.temperature, 1);
-      display.print(" C");
-      display.display();
-#endif // LCD
 
       myIMU.count = millis();
-      digitalWrite(myLed, !digitalRead(myLed));  // toggle led
+//      digitalWrite(myLed, !digitalRead(myLed));  // toggle led
     } // if (myIMU.delt_t > 500)
   } // if (!AHRS)
   else
@@ -368,7 +449,14 @@ void loop()
       // - http://www.ngdc.noaa.gov/geomag-web/#declination
       myIMU.yaw  -= 8.5;
       myIMU.roll *= RAD_TO_DEG;
-
+      
+      input = myIMU.pitch + 180;
+      if(cnt != 1)
+      {
+        cnt = 1;
+        //setpoint = input;
+      }
+      Serial.println(input);
       if(SerialDebug)
       {
         Serial.print("Yaw, Pitch, Roll: ");
@@ -377,57 +465,14 @@ void loop()
         Serial.print(myIMU.pitch, 2);
         Serial.print(", ");
         Serial.println(myIMU.roll, 2);
+        Serial.println(output);
 
         Serial.print("rate = ");
         Serial.print((float)myIMU.sumCount / myIMU.sum, 2);
         Serial.println(" Hz");
       }
 
-#ifdef LCD
-      display.clearDisplay();
 
-      display.setCursor(0, 0); display.print(" x   y   z  ");
-
-      display.setCursor(0,  8); display.print((int)(1000 * myIMU.ax));
-      display.setCursor(24, 8); display.print((int)(1000 * myIMU.ay));
-      display.setCursor(48, 8); display.print((int)(1000 * myIMU.az));
-      display.setCursor(72, 8); display.print("mg");
-
-      display.setCursor(0,  16); display.print((int)(myIMU.gx));
-      display.setCursor(24, 16); display.print((int)(myIMU.gy));
-      display.setCursor(48, 16); display.print((int)(myIMU.gz));
-      display.setCursor(66, 16); display.print("o/s");
-
-      display.setCursor(0,  24); display.print((int)(myIMU.mx));
-      display.setCursor(24, 24); display.print((int)(myIMU.my));
-      display.setCursor(48, 24); display.print((int)(myIMU.mz));
-      display.setCursor(72, 24); display.print("mG");
-
-      display.setCursor(0,  32); display.print((int)(myIMU.yaw));
-      display.setCursor(24, 32); display.print((int)(myIMU.pitch));
-      display.setCursor(48, 32); display.print((int)(myIMU.roll));
-      display.setCursor(66, 32); display.print("ypr");
-
-    // With these settings the filter is updating at a ~145 Hz rate using the
-    // Madgwick scheme and >200 Hz using the Mahony scheme even though the
-    // display refreshes at only 2 Hz. The filter update rate is determined
-    // mostly by the mathematical steps in the respective algorithms, the
-    // processor speed (8 MHz for the 3.3V Pro Mini), and the magnetometer ODR:
-    // an ODR of 10 Hz for the magnetometer produce the above rates, maximum
-    // magnetometer ODR of 100 Hz produces filter update rates of 36 - 145 and
-    // ~38 Hz for the Madgwick and Mahony schemes, respectively. This is
-    // presumably because the magnetometer read takes longer than the gyro or
-    // accelerometer reads. This filter update rate should be fast enough to
-    // maintain accurate platform orientation for stabilization control of a
-    // fast-moving robot or quadcopter. Compare to the update rate of 200 Hz
-    // produced by the on-board Digital Motion Processor of Invensense's MPU6050
-    // 6 DoF and MPU9150 9DoF sensors. The 3.3 V 8 MHz Pro Mini is doing pretty
-    // well!
-      display.setCursor(0, 40); display.print("rt: ");
-      display.print((float) myIMU.sumCount / myIMU.sum, 2);
-      display.print(" Hz");
-      display.display();
-#endif // LCD
 
       myIMU.count = millis();
       myIMU.sumCount = 0;
