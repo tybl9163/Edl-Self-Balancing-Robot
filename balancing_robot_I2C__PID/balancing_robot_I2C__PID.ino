@@ -1,8 +1,8 @@
-double Kp = 50;   
-double Kd = 0.01;
-double Ki = 3;
-#define max_speed 60
-double originalSetpoint = 170;
+double Kp = 50;   // Proportional Gain (Speed of Response)
+double Kd = 0.01; // Differentiator Gain
+double Ki = 3;    // Integrator Gain
+#define max_speed 60  // Max Speed for self-balancing speed compensation
+double originalSetpoint = 170;  // Makes the robot off center at the start of the loop so it begins correcting immediately
 
 
 /* MPU9250 Basic Example Code
