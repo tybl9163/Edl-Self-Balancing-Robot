@@ -1,3 +1,10 @@
+double Kp = 50;   
+double Kd = 0.01;
+double Ki = 3;
+#define max_speed 60
+double originalSetpoint = 170;
+
+
 /* MPU9250 Basic Example Code
  by: Kris Winer
  date: April 1, 2014
@@ -49,15 +56,13 @@ int myLed  = 13;  // Set up pin 13 led for toggling
 MPU9250 myIMU;
 
       //PID
-    double originalSetpoint = 190;
+    //double originalSetpoint = 190;
     double setpoint = originalSetpoint;
     double movingAngleOffset = 0.1;
     double input, output = 0;
     
     //adjust these values to fit your own design
-    double Kp = 50;   
-    double Kd = 0.01;
-    double Ki = 2;
+
     PID pid(&input, &output, &setpoint, Kp, Ki, Kd, DIRECT);
 
     // I2C scan function
@@ -229,7 +234,7 @@ void setup()
   pid.SetSampleTime(10);
   pid.SetOutputLimits(-255, 255); 
 }
-#define max_speed 90
+
 void robot_move(float speed)
 {
   speed = speed * -1;
