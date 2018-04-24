@@ -248,7 +248,7 @@ analogWrite(pinSpeed_Right,speed);
 if(speed < 0)
   {
     speed = speed * -1;
-    if(speed > 250)
+    if(speed > max_speed)
     speed = max_speed;
     analogWrite(pinSpeed_Left,speed);
     analogWrite(pinSpeed_Right,speed);
@@ -267,7 +267,7 @@ if(speed < 0)
   }
   else
   {
-    if(speed > 250)
+    if(speed > max_speed)
     speed = max_speed;
     analogWrite(pinSpeed_Left,speed);
     analogWrite(pinSpeed_Right,speed);
