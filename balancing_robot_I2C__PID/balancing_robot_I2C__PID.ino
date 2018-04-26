@@ -38,12 +38,12 @@ double originalSetpoint = 190;  // Makes the robot off center at the start of th
 
 
 // define pins
-const int pinSpeed_Left = 9; // connect pin 9 to speed reference
+const int pinSpeed_Left = 9; // connect pin 9 to speed reference for left wheel
 const int pinCW_Left = 7;    // connect pin 7 to clock-wise PMOS gate
 const int pinCC_Left = 8;    // connect pin 8 to counter-clock-wise PMOS gate
-const int pinSpeed_Right = 10;
-const int pinCW_Right = 11;
-const int pinCC_Right = 12;
+const int pinSpeed_Right = 10; // connect pin 10 to speed reference for right wheel
+const int pinCW_Right = 11; // connect pin 11 to CW direction for right wheel
+const int pinCC_Right = 12; // connect pin 12 to CC direction for right wheel
 char cnt = 0;
 
 #define AHRS true         // Set to false for basic data read
@@ -63,7 +63,7 @@ MPU9250 myIMU;
     
     //adjust these values to fit your own design
 
-    PID pid(&input, &output, &setpoint, Kp, Ki, Kd, DIRECT);
+    PID pid(&input, &output, &setpoint, Kp, Ki, Kd, DIRECT); // Takes in IMU measurements, constant gain values, the balncing setpoint  and calculates an output value depending on variation from the setpoint and the input measurements
 
     // I2C scan function
 
@@ -72,9 +72,9 @@ void setup()
 {
 
    //pinMode(pinON,INPUT);
-  pinMode(pinCW_Left,OUTPUT);
-  pinMode(pinCC_Left,OUTPUT);
-  pinMode(pinSpeed_Left,OUTPUT);
+  pinMode(pinCW_Left,OUTPUT); // CW Left is an output
+  pinMode(pinCC_Left,OUTPUT); // CC Left is an Output
+  pinMode(pinSpeed_Left,OUTPUT); // Vref Left is an output 
   pinMode(13,OUTPUT);             // on-board LED
   digitalWrite(13,LOW);           // turn LED off
   digitalWrite(pinCW_Left,LOW);   // stop clockwise
@@ -82,15 +82,19 @@ void setup()
   
 
   //right
-  pinMode(pinCW_Right,OUTPUT);
-  pinMode(pinCC_Right,OUTPUT);
-  pinMode(pinSpeed_Right,OUTPUT);
+  pinMode(pinCW_Right,OUTPUT); // CW Right is an output
+  pinMode(pinCC_Right,OUTPUT);  // CC Right is an output
+  pinMode(pinSpeed_Right,OUTPUT); // Vreff Left is an output
   digitalWrite(pinCW_Right,LOW);   // stop clockwise
   digitalWrite(pinCC_Right,LOW);   // stop counter-clockwise
   Wire.begin();
   // TWBR = 12;  // 400 kbit/sec I2C speed
+<<<<<<< HEAD
   Serial.begin(38400);
   Serial.print(('y'));
+=======
+  Serial.begin(38400); // Sets bud rate to 38400 symbols/second
+>>>>>>> cb5bf676a73978b250ef95dfad1ec129bf530d13
 //set bypass mode
 //myIMU.writeByte(MPU9250_ADDRESS, INT_PIN_CFG, 0x1);
 //Wire.beginTransmission(MPU9250_ADDRESS);
@@ -101,10 +105,10 @@ void setup()
 //i2c.writeReg(INT_PIN_CFG, 0b00000010) # BYPASS_EN
 
   // Set up the interrupt pin, its set as active high, push-pull
-  pinMode(intPin, INPUT);
-  digitalWrite(intPin, LOW);
-  pinMode(myLed, OUTPUT);
-  digitalWrite(myLed, HIGH);
+  pinMode(intPin, INPUT); // Sets interrupt pin as an input
+  digitalWrite(intPin, LOW); // Interrupt pin is by default low
+  pinMode(myLed, OUTPUT); // LED is an output
+  digitalWrite(myLed, HIGH); // LED is by default high
 
   // Read the WHO_AM_I register, this is a good test of communication
   byte c = myIMU.readByte(MPU9250_ADDRESS, WHO_AM_I_MPU9250);
@@ -233,22 +237,22 @@ void setup()
   }
   //setup PID
   
-  pid.SetMode(AUTOMATIC);
-  pid.SetSampleTime(10);
-  pid.SetOutputLimits(-255, 255); 
+  pid.SetMode(AUTOMATIC); // Lets arduino change output by dynamically comparing input measurements and setpoint
+  pid.SetSampleTime(10); // Samples error between setpoint and input every 10 milliseconds
+  pid.SetOutputLimits(-255, 255); // Maps output limits to 8 bit resolution
 }
 
 void robot_move(float speed)
 {
-  speed = speed * -1;
+  speed = speed * -1; // Makes speed negative to start self-correcting right away
 
   //speed = speed / 64;
   //Serial.println("speed:");
   //Serial.println(speed);
 
-analogWrite(pinSpeed_Left,speed);
-analogWrite(pinSpeed_Right,speed);
-if(speed < 0)
+analogWrite(pinSpeed_Left,speed); // drive left wheel with speed parameter
+analogWrite(pinSpeed_Right,speed); // drive right wheel with speed parameter
+if(speed < 0) // If speed is negative make it positive and then 
   {
     speed = speed * -1;
     if(speed > 250)
