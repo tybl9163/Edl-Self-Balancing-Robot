@@ -1,8 +1,8 @@
-double Kp = 50;   // Proportional Gain (Speed of Response)
+double Kp = 80;   // Proportional Gain (Speed of Response)
 double Kd = 0.01; // Differentiator Gain
 double Ki = 3;    // Integrator Gain
 #define max_speed 60  // Max Speed for self-balancing speed compensation
-double originalSetpoint = 170;  // Makes the robot off center at the start of the loop so it begins correcting immediately
+double originalSetpoint = 190;  // Makes the robot off center at the start of the loop so it begins correcting immediately
 
 
 /* MPU9250 Basic Example Code
@@ -90,6 +90,7 @@ void setup()
   Wire.begin();
   // TWBR = 12;  // 400 kbit/sec I2C speed
   Serial.begin(38400);
+  Serial.print(('y'));
 //set bypass mode
 //myIMU.writeByte(MPU9250_ADDRESS, INT_PIN_CFG, 0x1);
 //Wire.beginTransmission(MPU9250_ADDRESS);
@@ -107,7 +108,9 @@ void setup()
 
   // Read the WHO_AM_I register, this is a good test of communication
   byte c = myIMU.readByte(MPU9250_ADDRESS, WHO_AM_I_MPU9250);
+  Serial.println("fyehefuh");
   Serial.print(F("MPU9250 I AM 0x"));
+  //char c = 0;
   Serial.print(c, HEX);
   Serial.print(F(" I should be 0x"));
   Serial.println(0x71, HEX);
@@ -248,7 +251,7 @@ analogWrite(pinSpeed_Right,speed);
 if(speed < 0)
   {
     speed = speed * -1;
-    if(speed > max_speed)
+    if(speed > 250)
     speed = max_speed;
     analogWrite(pinSpeed_Left,speed);
     analogWrite(pinSpeed_Right,speed);
@@ -267,7 +270,7 @@ if(speed < 0)
   }
   else
   {
-    if(speed > max_speed)
+    if(speed > 250)
     speed = max_speed;
     analogWrite(pinSpeed_Left,speed);
     analogWrite(pinSpeed_Right,speed);
